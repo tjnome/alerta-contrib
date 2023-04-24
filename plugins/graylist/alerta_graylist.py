@@ -1,10 +1,8 @@
 import logging
-import json
 
 from typing import Any
-from alerta.app import alarm_model
 from alerta.models.filter import Filter
-from alerta.plugins import PluginBase
+from alerta.plugins import PluginBase, app
 
 LOG = logging.getLogger('alerta.plugins')
 
