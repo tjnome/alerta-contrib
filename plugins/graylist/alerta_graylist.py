@@ -10,7 +10,7 @@ from alerta.plugins import PluginBase, app
 
 LOG = logging.getLogger('alerta.plugins')
 
-HOSTNAME_TAGS = app.config.get('HOSTNAME_TAGS', ['targethost', 'host'])
+HOST_TAGS = app.config.get('HOST_TAGS', ['targethost', 'host'])
 REPORTER_TAGS = app.config.get(
     'REPORTER_TAGS', ['pamola_host', 'pamola_externalid', 'pamola_customerprefix'])
 CUSTOMER_TAGS = app.config.get(
@@ -31,8 +31,10 @@ class GrayHandler(PluginBase):
         tags = {}
         for tag in alert.tags:
             if '=' in tag:
-                key, value = tags.split('=', 1)
+                key, value = tag.split('=', 1)
                 tags[key] = value
+            else:
+                tags[tag] = None
 
         if not all([tag in tags for tag in REPORTER_TAGS]):
             LOG.debug(f'Missing {REPORTER_TAGS} in alert: {alert}')
@@ -40,42 +42,38 @@ class GrayHandler(PluginBase):
 
         if (not tags.get('targethost') and tags.get('host') == tags['pamola_host']):
             LOG.debug(
-                f'{HOSTNAME_TAGS} matches {REPORTER_TAGS} in alert: {alert}')
+                f'host matches pamola_host in alert: {alert}')
 
-            if (tags.get('externalid') != tags['pamola_externalid'] and tags.get('customerprefix') != tags['pamola_customerprefix']):
-                LOG.debug(
-                    f'{CUSTOMER_TAGS} and {REPORTER_TAGS} does not match. Set tags for: {alert}')
-
-                # Insert customerprefix, externalid.
-                for key in CUSTOMER_TAGS:
-                    if key in tags:
-                        alert.tags.remove(key + '=' + tags[key])
-                        alert.tags.append(
-                            key + '=' + tags['pamola' + '_' + key])
+            # Insert customerprefix, externalid.
+            for key in CUSTOMER_TAGS:
+                tags[key] = tags['pamola' + '_' + key]
 
             # Remove reporter tags
             for key in REPORTER_TAGS:
-                alert.tags.remove(key + '=' + tags[key])
+                tags.pop(key, None)
+
+            alert.tags.clear()
+            for key, value in tags.items():
+                if value is None:
+                    alert.tags.append(key)
+                else:
+                    alert.tags.append(key + '=' + value)
+
             return alert
 
         filters = Filter.find_matching_filters(alert, 'graylist')
         if not filters:
             # Impersonate (Amogus)
             LOG.warning(
-                f'Filter does not match alert. Amogus SUS alert: {alert}')
-            # Remove host, tagethost, externalid and customerprefix
-            for key in CUSTOMER_TAGS:
-                if key in tags:
-                    alert.tags.remove(key + '=' + tags[key])
-            for key in HOSTNAME_TAGS:
-                if key in tags:
-                    alert.tags.remove(key + '=' + tags[key])
-
+                f'Filter does not match alert. Amogus SUS alert: {alert} tags: {alert.tags}')
+            # Remove targethost
+            tags.pop('targethost', None)
             for key in REPORTER_TAGS:
+                # Insert/Overrride host, externalid, customerprefix
+                tags[key.split('_', 1)[1], tags[key]]
                 # Remove reporter tags
-                alert.tags.remove(key + '=' + tags[key])
-                # Insert host, customerprefix, externalid.
-                alert.tags.append(key.split('_', 1)[1] + '=' + tags[key])
+                tags.pop(key, None)
+            LOG.debug(f'Return Amogus SUS alert object: {alert} tags: {alert.tags}')
             return alert
 
         for f in filters:
