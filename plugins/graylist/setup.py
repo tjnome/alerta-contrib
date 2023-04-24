@@ -1,9 +1,9 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 version = '1.0.0'
 
 setup(
-    name="alerta-graylist",
+    name='alerta-graylist',
     version=version,
     description='Alerta plugin for graylisting alarms and blackout.',
     url='https://github.com/alerta/alerta-contrib',
