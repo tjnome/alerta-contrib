@@ -3,7 +3,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from alerta.exceptions import RejectException
-from alerta.models import Alert, Blackout, Filter
+from alerta.models.alert import Alert
+from alerta.models.blackout import Blackout
+from alerta.models.filter import Filter
 from alerta.plugins import PluginBase, app
 
 LOG = logging.getLogger('alerta.plugins')
