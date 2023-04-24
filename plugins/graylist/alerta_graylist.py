@@ -3,8 +3,6 @@ import json
 
 from typing import Any
 from alerta.app import alarm_model
-from alerta.models.alarms.alerta import SEVERITY_MAP
-from alerta.models.enums import Status, Action
 from alerta.models.filter import Filter
 from alerta.plugins import PluginBase
 
