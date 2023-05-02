@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 from alerta.exceptions import RejectException
 from alerta.models.alert import Alert
@@ -34,9 +34,9 @@ class Role(Enum):
 
 class GrayHandler(PluginBase):
 
-    def pre_receive(self, alert: Alert, **kwargs) -> Alert:
+    def pre_receive(self, alert: Alert, **kwargs: Any) -> Alert:
         # Create a dict (Much faster than list)
-        plain_tags = []
+        plain_tags: list[str] = []
         tags = {}
         for tag in alert.tags:
             if '=' in tag:
@@ -102,7 +102,7 @@ class GrayHandler(PluginBase):
                 LOG.warning(
                     f'[{__name__}] filter has invalid attributes: {f.id} error: {e}')
                 continue
-            
+
             if grayattr.host == tags[REPORTER_PREFIX + 'host']:
                 if Role.ALERT.value in grayattr.roles:
                     alert.tags = self.dict_to_list(tags, plain_tags)
@@ -130,19 +130,19 @@ class GrayHandler(PluginBase):
         alert.tags = self.dict_to_list(tags, plain_tags)
         return alert
 
-    def post_receive(self, alert, **kwargs):
+    def post_receive(self, alert: Alert, **kwargs: Any) -> Optional[Alert]:
         return alert
 
-    def status_change(self, alert, status, text, **kwargs):
+    def status_change(self, alert: Alert, status: str, text: str, **kwargs: Any) -> Any:
         return
 
-    def take_action(self, alert, action, text, **kwargs):
+    def take_action(self, alert: Alert, action: str, text: str, **kwargs: Any) -> Any:
         raise NotImplementedError
 
-    def delete(self, alert, **kwargs) -> bool:
+    def delete(self, alert: Alert, **kwargs: Any) -> bool:
         raise NotImplementedError
 
-    def receive_blackout(self, blackout: Blackout, **kwargs) -> Blackout:
+    def receive_blackout(self, blackout: Blackout, **kwargs: Any) -> Blackout:
         # Create a dict (Much faster than list)
         plain_tags = []
         tags = {}
@@ -175,7 +175,6 @@ class GrayHandler(PluginBase):
 
         # Check if blackout matches anything:
         filters = Filter.find_matching_filters(blackout, 'graylist')
-        LOG.debug('SUSIBAKA: ' + str(len(filters)))
         for f in filters:
             try:
                 grayattr = GrayAttributes(**f.attributes)
@@ -189,27 +188,24 @@ class GrayHandler(PluginBase):
                     blackout.tags = self.dict_to_list(tags, plain_tags)
                     return blackout
 
-        raise RejectException(f"[{__name__}] rejected blackout. Not allowed")
+        raise RejectException(f'[{__name__}] rejected blackout. Not allowed')
 
-    def delete_blackout(self, blackout: 'Blackout', **kwargs) -> bool:
+    def delete_blackout(self, blackout: Blackout, **kwargs: Any) -> bool:
         raise NotImplementedError
 
-    def create_filter(self, filter: 'Filter', **kwargs) -> 'Filter':
+    def create_filter(self, filter: Filter, **kwargs: Any) -> 'Filter':
         raise NotImplementedError
 
-    def receive_filter(self, filter: 'Filter', **kwargs) -> 'Filter':
+    def receive_filter(self, filter: Filter, **kwargs: Any) -> 'Filter':
         raise NotImplementedError
 
-    def delete_filter(self, filter: 'Filter', **kwargs) -> bool:
+    def delete_filter(self, filter: Filter, **kwargs: Any) -> bool:
         raise NotImplementedError
 
     @classmethod
     def dict_to_list(cls, tags: dict[str, str], tags_list: list[str]) -> list[str]:
         for key, value in tags.items():
-            if value is None:
-                tags_list.append(key)
-            else:
-                tags_list.append(key + '=' + value)
+            tags_list.append(key + '=' + value)
         return cls.remove_report(tags_list)
 
     @staticmethod
