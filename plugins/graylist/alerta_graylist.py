@@ -2,12 +2,16 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
+from json import dumps
 
 from alerta.exceptions import RejectException
 from alerta.models.alert import Alert
+from alerta.utils.audit import write_audit_trail
 from alerta.models.blackout import Blackout
 from alerta.models.filter import Filter
 from alerta.plugins import PluginBase, app
+
+from flask import current_app, g, jsonify, request
 
 LOG = logging.getLogger('alerta.plugins')
 
@@ -106,11 +110,12 @@ class GrayHandler(PluginBase):
             if grayattr.host == tags[REPORTER_PREFIX + 'host']:
                 if Role.ALERT.value in grayattr.roles:
                     alert.tags = self.dict_to_list(tags, plain_tags)
+                    write_audit_trail.send(current_app._get_current_object(), event='alert-graylisted', message='graylist matches alert', user=g.login, customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request, filter=repr(f))
                     return alert
 
-        # Impersonate (Amogus)
-        LOG.warning(
-            f'[{__name__}] Filter does not match alert. Amogus SUS alert: {alert} tags: {tags}')
+        # Impersonate (Amongus)
+        LOG.warning(f'[{__name__}] No graylist matches alert. Amongus SUS alert: {alert} tags: {tags}')
+        write_audit_trail.send(current_app._get_current_object(), event='alert-sus', message='No graylist matches alert. Amongus SUS alert', user=g.login, customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request)
 
         # Overwrite host tags
         for tag in HOST_TAGS:
@@ -118,7 +123,6 @@ class GrayHandler(PluginBase):
 
         # Overwrite customer tags
         for tag in CUSTOMER_TAGS:
-            # NB!! SUS TAG????
             tags[tag] = tags[REPORTER_PREFIX + tag]
 
         # Remove target tags
@@ -126,7 +130,7 @@ class GrayHandler(PluginBase):
             tags.pop(tag, None)
 
         LOG.debug(
-            f'[{__name__}] Return Amogus SUS alert object: {alert} tags: {tags}')
+            f'[{__name__}] Return Amongus SUS alert object: {alert} tags: {tags}')
         alert.tags = self.dict_to_list(tags, plain_tags)
         return alert
 
@@ -186,6 +190,7 @@ class GrayHandler(PluginBase):
             if grayattr.host == tags[REPORTER_PREFIX + 'host']:
                 if Role.BLACKOUT.value in grayattr.roles:
                     blackout.tags = self.dict_to_list(tags, plain_tags)
+                    write_audit_trail.send(current_app._get_current_object(), event='blackout-graylisted', message='graylist matches blackout', user=g.login, customers=g.customers, scopes=g.scopes, resource_id=blackout.id, type='blackout', request=request, filter=repr(f))
                     return blackout
 
         raise RejectException(f'[{__name__}] rejected blackout. Not allowed')
