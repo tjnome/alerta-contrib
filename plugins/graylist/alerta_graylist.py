@@ -2,16 +2,14 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
-from json import dumps
 
 from alerta.exceptions import RejectException
 from alerta.models.alert import Alert
-from alerta.utils.audit import write_audit_trail
 from alerta.models.blackout import Blackout
 from alerta.models.filter import Filter
 from alerta.plugins import PluginBase, app
-
-from flask import current_app, g, jsonify, request
+from alerta.utils.audit import write_audit_trail
+from flask import current_app, g, request
 
 LOG = logging.getLogger('alerta.plugins')
 
@@ -110,12 +108,15 @@ class GrayHandler(PluginBase):
             if grayattr.host == tags[REPORTER_PREFIX + 'host']:
                 if Role.ALERT.value in grayattr.roles:
                     alert.tags = self.dict_to_list(tags, plain_tags)
-                    write_audit_trail.send(current_app._get_current_object(), event='alert-graylisted', message='graylist matches alert', user=g.login, customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request, filter=repr(f))
+                    write_audit_trail.send(current_app._get_current_object(), event='alert-graylisted', message='graylist matches alert',
+                                           user=g.login, customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request, filter=repr(f))
                     return alert
 
         # Impersonate (Amongus)
-        LOG.warning(f'[{__name__}] No graylist matches alert. Amongus SUS alert: {alert} tags: {tags}')
-        write_audit_trail.send(current_app._get_current_object(), event='alert-sus', message='No graylist matches alert. Amongus SUS alert', user=g.login, customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request)
+        LOG.warning(
+            f'[{__name__}] No graylist matches alert. Amongus SUS alert: {alert} tags: {tags}')
+        write_audit_trail.send(current_app._get_current_object(), event='alert-sus', message='No graylist matches alert. Amongus SUS alert',
+                               user=g.login, customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request)
 
         # Overwrite host tags
         for tag in HOST_TAGS:
@@ -190,7 +191,8 @@ class GrayHandler(PluginBase):
             if grayattr.host == tags[REPORTER_PREFIX + 'host']:
                 if Role.BLACKOUT.value in grayattr.roles:
                     blackout.tags = self.dict_to_list(tags, plain_tags)
-                    write_audit_trail.send(current_app._get_current_object(), event='blackout-graylisted', message='graylist matches blackout', user=g.login, customers=g.customers, scopes=g.scopes, resource_id=blackout.id, type='blackout', request=request, filter=repr(f))
+                    write_audit_trail.send(current_app._get_current_object(), event='blackout-graylisted', message='graylist matches blackout',
+                                           user=g.login, customers=g.customers, scopes=g.scopes, resource_id=blackout.id, type='blackout', request=request, filter=repr(f))
                     return blackout
 
         raise RejectException(f'[{__name__}] rejected blackout. Not allowed')
