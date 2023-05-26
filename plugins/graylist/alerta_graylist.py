@@ -108,7 +108,7 @@ class GrayHandler(PluginBase):
                     f'[{__name__}] filter has invalid attributes: {f.id} error: {e}')
                 continue
 
-            if grayattr.host == reporters[tag]:
+            if grayattr.host == reporters['host']:
                 if Role.ALERT.value in grayattr.roles:
                     alert.tags = self.dict_to_list(tags, plain_tags)
                     write_audit_trail.send(current_app._get_current_object(), event='alert-graylisted', message='graylist matches alert',
@@ -198,7 +198,7 @@ class GrayHandler(PluginBase):
                     f'[{__name__}] filter has invalid attributes: {f.id} error: {e}')
                 continue
 
-            if grayattr.host == reporters[tag]:
+            if grayattr.host == reporters['host']:
                 if Role.BLACKOUT.value in grayattr.roles:
                     blackout.tags = self.dict_to_list(tags, plain_tags)
                     write_audit_trail.send(current_app._get_current_object(), event='blackout-graylisted', message='graylist matches blackout',
