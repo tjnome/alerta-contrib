@@ -15,11 +15,8 @@ LOG = logging.getLogger('alerta.plugins')
 
 HOST_TAGS = app.config.get('HOST_TAGS', ['host'])
 TARGET_TAGS = app.config.get('TARGET_TAGS', ['targethost'])
-REPORTER_TAGS = app.config.get('REPORTER_TAGS', [
-                               'reporter:host', 'reporter:externalid', 'reporter:customerprefix'])
-CUSTOMER_TAGS = app.config.get(
-    'CUSTOMER_TAGS', ['externalid', 'customerprefix'])
-REPORTER_PREFIX = app.config.get('REPORTER_PREFIX', 'reporter:')
+REPORTER_HEADERS = app.config.get('REPORTER_HEADERS', ['X-Pamola-Reporter-Host', 'X-Pamola-Reporter-External-ID', 'X-Pamola-Reporter-Customer-Prefix'])
+CUSTOMER_TAGS = app.config.get('CUSTOMER_TAGS', ['externalid', 'customerprefix'])
 
 
 @dataclass
@@ -37,6 +34,12 @@ class Role(Enum):
 class GrayHandler(PluginBase):
 
     def pre_receive(self, alert: Alert, **kwargs: Any) -> Alert:
+        # Get reporter from header:
+        if not all([header in request.headers for header in REPORTER_HEADERS]):
+            LOG.debug(
+                f'[{__name__}] Missing {REPORTER_HEADERS} in alert header: {alert}')
+            return alert
+
         # Create a dict (Much faster than list)
         plain_tags: list[str] = []
         tags = {}
@@ -47,23 +50,23 @@ class GrayHandler(PluginBase):
             else:
                 plain_tags.append(tag)
 
-        # Check if reporter tags exists
-        if not all([tag in tags for tag in REPORTER_TAGS]):
-            LOG.debug(
-                f'[{__name__}] Missing {REPORTER_TAGS} in alert: {alert}')
-            return alert
+        # Create a dict that contains reporter
+        reporters = {}
+        for header, value in request.headers:
+            if header.startswith('X-Pamola-Reporter-'):
+                reporters[header.replace('X-Pamola-Reporter-', '').replace('-', '').lower()] = value         
 
         # Set host tags if missing
         for tag in HOST_TAGS:
             if tag not in tags:
-                tags[tag] = tags[REPORTER_PREFIX + tag]
+                tags[tag] = reporters[tag]
                 LOG.debug(
                     f'[{__name__}] Added missing {tag} in alert: {alert}, tags {tags}')
 
         # Set customer tags if missing
         if not all([tags.get(tag) for tag in CUSTOMER_TAGS]):
             for tag in CUSTOMER_TAGS:
-                tags[tag] = tags[REPORTER_PREFIX + tag]
+                tags[tag] = reporters[tag]
                 LOG.debug(
                     f'[{__name__}] Added missing {tag} in alert: {alert}, tags {tags}')
 
@@ -72,10 +75,10 @@ class GrayHandler(PluginBase):
         if any([tag in tags for tag in TARGET_TAGS]):
             match = True
             for tag in HOST_TAGS:
-                if tags.get(tag) != tags[REPORTER_PREFIX + tag]:
+                if tags.get(tag) != reporters[tag]:
                     match = False
             for tag in CUSTOMER_TAGS:
-                if tags.get(tag) != tags[REPORTER_PREFIX + tag]:
+                if tags.get(tag) != reporters[tag]:
                     match = False
             if match:
                 LOG.debug(
@@ -85,11 +88,11 @@ class GrayHandler(PluginBase):
         else:
             match_host = True
             for tag in HOST_TAGS:
-                if tags.get(tag) != tags[REPORTER_PREFIX + tag]:
+                if tags.get(tag) != reporters[tag]:
                     match_host = False
             if match_host:
                 for tag in CUSTOMER_TAGS:
-                    tags[tag] = tags[REPORTER_PREFIX + tag]
+                    tags[tag] = reporters[tag]
 
                 LOG.debug(
                     f'[{__name__}] Added customer tags to alert: {alert}, tags {tags}')
@@ -105,7 +108,7 @@ class GrayHandler(PluginBase):
                     f'[{__name__}] filter has invalid attributes: {f.id} error: {e}')
                 continue
 
-            if grayattr.host == tags[REPORTER_PREFIX + 'host']:
+            if grayattr.host == reporters[tag]:
                 if Role.ALERT.value in grayattr.roles:
                     alert.tags = self.dict_to_list(tags, plain_tags)
                     write_audit_trail.send(current_app._get_current_object(), event='alert-graylisted', message='graylist matches alert',
@@ -120,11 +123,11 @@ class GrayHandler(PluginBase):
 
         # Overwrite host tags
         for tag in HOST_TAGS:
-            tags[tag] = tags[REPORTER_PREFIX + tag]
+            tags[tag] = reporters[tag]
 
         # Overwrite customer tags
         for tag in CUSTOMER_TAGS:
-            tags[tag] = tags[REPORTER_PREFIX + tag]
+            tags[tag] = reporters[tag]
 
         # Remove target tags
         for tag in TARGET_TAGS:
@@ -148,6 +151,12 @@ class GrayHandler(PluginBase):
         raise NotImplementedError
 
     def receive_blackout(self, blackout: Blackout, **kwargs: Any) -> Blackout:
+        # Get reporter from header:
+        if not all([header in request.headers for header in REPORTER_HEADERS]):
+            LOG.debug(
+                f'[{__name__}] Missing {REPORTER_HEADERS} in alert header: {alert}')
+            return alert
+
         # Create a dict (Much faster than list)
         plain_tags = []
         tags = {}
@@ -158,22 +167,23 @@ class GrayHandler(PluginBase):
             else:
                 plain_tags.append(tag)
 
-        if not all([tag in tags for tag in REPORTER_TAGS]):
-            LOG.debug(
-                f'[{__name__}] Missing {REPORTER_TAGS} in blackout: {blackout}')
-            return blackout
+        # Create a dict that contains reporter
+        reporters = {}
+        for header, value in request.headers:
+            if header.startswith('X-Pamola-Reporter-'):
+                reporters[header.replace('X-Pamola-Reporter-', '').replace('-', '').lower()] = value  
 
         # Host tags value need to be defined in tags or plain_tags
         host_match = True
         for tag in HOST_TAGS:
-            if tags.get(tag) != tags[REPORTER_PREFIX + tag] and tags[REPORTER_PREFIX + tag] not in plain_tags:
+            if tags.get(tag) != reporters[tag] and reporters[tag] not in plain_tags:
                 host_match = False
                 break
 
         if host_match:
             # Enforced customer tags
             for tag in CUSTOMER_TAGS:
-                tags[tag] = tags[REPORTER_PREFIX + tag]
+                tags[tag] = reporters[tag]
 
             blackout.tags = self.dict_to_list(tags, plain_tags)
             return blackout
@@ -188,7 +198,7 @@ class GrayHandler(PluginBase):
                     f'[{__name__}] filter has invalid attributes: {f.id} error: {e}')
                 continue
 
-            if grayattr.host == tags[REPORTER_PREFIX + 'host']:
+            if grayattr.host == reporters[tag]:
                 if Role.BLACKOUT.value in grayattr.roles:
                     blackout.tags = self.dict_to_list(tags, plain_tags)
                     write_audit_trail.send(current_app._get_current_object(), event='blackout-graylisted', message='graylist matches blackout',
@@ -213,8 +223,4 @@ class GrayHandler(PluginBase):
     def dict_to_list(cls, tags: dict[str, str], tags_list: list[str]) -> list[str]:
         for key, value in tags.items():
             tags_list.append(key + '=' + value)
-        return cls.remove_report(tags_list)
-
-    @staticmethod
-    def remove_report(tags: list[str]) -> list[str]:
-        return [tag for tag in tags if not tag.startswith(REPORTER_PREFIX)]
+        return tags_list
