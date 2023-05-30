@@ -13,10 +13,12 @@ from flask import current_app, g, request
 
 LOG = logging.getLogger('alerta.plugins')
 
-HOST_TAGS = app.config.get('HOST_TAGS', ['host'])
-TARGET_TAGS = app.config.get('TARGET_TAGS', ['targethost'])
-REPORTER_HEADERS = app.config.get('REPORTER_HEADERS', ['X-Pamola-Reporter-Host', 'X-Pamola-Reporter-External-ID', 'X-Pamola-Reporter-Customer-Prefix'])
-CUSTOMER_TAGS = app.config.get('CUSTOMER_TAGS', ['externalid', 'customerprefix'])
+HOST_TAGS = app.config.get('host_tags', ['host'])
+TARGET_TAGS = app.config.get('target_tags', ['targethost'])
+REPORTER_HEADERS = app.config.get('reporter_headers', [
+                                  'X-Pamola-Reporter-Host', 'X-Pamola-Reporter-External-ID', 'X-Pamola-Reporter-Customer-Prefix'])
+CUSTOMER_TAGS = app.config.get(
+    'customer_tags', ['externalid', 'customerprefix'])
 
 
 @dataclass
@@ -54,7 +56,8 @@ class GrayHandler(PluginBase):
         reporters = {}
         for header, value in request.headers:
             if header.startswith('X-Pamola-Reporter-'):
-                reporters[header.replace('X-Pamola-Reporter-', '').replace('-', '').lower()] = value         
+                reporters[header.replace(
+                    'X-Pamola-Reporter-', '').replace('-', '').lower()] = value
 
         # Set host tags if missing
         for tag in HOST_TAGS:
@@ -154,8 +157,8 @@ class GrayHandler(PluginBase):
         # Get reporter from header:
         if not all([header in request.headers for header in REPORTER_HEADERS]):
             LOG.debug(
-                f'[{__name__}] Missing {REPORTER_HEADERS} in alert header: {alert}')
-            return alert
+                f'[{__name__}] Missing {REPORTER_HEADERS} in alert header: {blackout}')
+            return blackout
 
         # Create a dict (Much faster than list)
         plain_tags = []
@@ -171,7 +174,8 @@ class GrayHandler(PluginBase):
         reporters = {}
         for header, value in request.headers:
             if header.startswith('X-Pamola-Reporter-'):
-                reporters[header.replace('X-Pamola-Reporter-', '').replace('-', '').lower()] = value  
+                reporters[header.replace(
+                    'X-Pamola-Reporter-', '').replace('-', '').lower()] = value
 
         # Host tags value need to be defined in tags or plain_tags
         host_match = True
