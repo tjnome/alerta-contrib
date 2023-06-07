@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Optional
 
-from alerta.exceptions import RejectException
 from alerta.models.alert import Alert
 from alerta.models.blackout import Blackout
 from alerta.models.filter import Filter
@@ -209,7 +208,17 @@ class GrayHandler(PluginBase):
                                            user=g.login, customers=g.customers, scopes=g.scopes, resource_id=blackout.id, type='blackout', request=request, filter=repr(f))
                     return blackout
 
-        raise RejectException(f'[{__name__}] rejected blackout. Not allowed')
+        # If no match on filters. Create blackout with host and customer tags
+        for tag in HOST_TAGS:
+            tags[tag] = reporters[tag]
+
+        for tag in CUSTOMER_TAGS:
+            tags[tag] = reporters[tag]
+
+        blackout.tags = self.dict_to_list(tags, plain_tags)
+        write_audit_trail.send(current_app._get_current_object(), event='blackout-graylisted', message='No graylist matches blackout. Amongus SUS blackout',
+                               user=g.login, customers=g.customers, scopes=g.scopes, resource_id=blackout.id, type='blackout', request=request, filter=repr(f))
+        return blackout
 
     def delete_blackout(self, blackout: Blackout, **kwargs: Any) -> bool:
         raise NotImplementedError

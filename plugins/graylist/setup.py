@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-version = '2.0.1'
+version = '2.1.0'
 
 setup(
     name='alerta-graylist',
