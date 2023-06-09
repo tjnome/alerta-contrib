@@ -208,9 +208,8 @@ class GrayHandler(PluginBase):
                                            user=g.login, customers=g.customers, scopes=g.scopes, resource_id=blackout.id, type='blackout', request=request, filter=repr(f))
                     return blackout
 
-        # If no match on filters. Create blackout with host and customer tags
-        for tag in HOST_TAGS:
-            tags[tag] = reporters[tag]
+        # If no match on filters. Create blackout with FQDN of host and customer tags
+        plain_tags.append(reporters['host'])
 
         for tag in CUSTOMER_TAGS:
             tags[tag] = reporters[tag]
