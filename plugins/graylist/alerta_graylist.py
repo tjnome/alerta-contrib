@@ -215,8 +215,7 @@ class GrayHandler(PluginBase):
             tags[tag] = reporters[tag]
 
         blackout.tags = self.dict_to_list(tags, plain_tags)
-        write_audit_trail.send(current_app._get_current_object(), event='blackout-graylisted', message='No graylist matches blackout. Amongus SUS blackout',
-                               user=g.login, customers=g.customers, scopes=g.scopes, resource_id=blackout.id, type='blackout', request=request, filter=repr(f))
+        write_audit_trail.send(current_app._get_current_object(), event='blackout-graylisted', message='No graylist matches blackout. Amongus SUS blackout', user=g.login, customers=g.customers, scopes=g.scopes, resource_id=blackout.id, type='blackout', request=request)
         return blackout
 
     def delete_blackout(self, blackout: Blackout, **kwargs: Any) -> bool:
