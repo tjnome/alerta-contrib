@@ -16,8 +16,10 @@ HOST_TAGS = app.config.get('host_tags', ['host'])
 TARGET_TAGS = app.config.get('target_tags', ['targethost'])
 REPORTER_HEADERS = app.config.get('reporter_headers', [
                                   'X-Pamola-Reporter-Host', 'X-Pamola-Reporter-External-ID', 'X-Pamola-Reporter-Customer-Prefix'])
-CUSTOMER_TAGS = app.config.get(
+ALERT_CUSTOMER_TAGS = app.config.get(
     'customer_tags', ['externalid', 'customerprefix'])
+BLACKOUT_CUSTOMER_TAGS = app.config.get(
+    'customer_tags', ['externalid'])
 
 
 @dataclass
@@ -66,8 +68,8 @@ class GrayHandler(PluginBase):
                     f'[{__name__}] Added missing {tag} in alert: {alert}, tags {tags}')
 
         # Set customer tags if missing
-        if not all([tags.get(tag) for tag in CUSTOMER_TAGS]):
-            for tag in CUSTOMER_TAGS:
+        if not all([tags.get(tag) for tag in ALERT_CUSTOMER_TAGS]):
+            for tag in ALERT_CUSTOMER_TAGS:
                 tags[tag] = reporters[tag]
                 LOG.debug(
                     f'[{__name__}] Added missing {tag} in alert: {alert}, tags {tags}')
@@ -79,7 +81,7 @@ class GrayHandler(PluginBase):
             for tag in HOST_TAGS:
                 if tags.get(tag) != reporters[tag]:
                     match = False
-            for tag in CUSTOMER_TAGS:
+            for tag in ALERT_CUSTOMER_TAGS:
                 if tags.get(tag) != reporters[tag]:
                     match = False
             if match:
@@ -93,7 +95,7 @@ class GrayHandler(PluginBase):
                 if tags.get(tag) != reporters[tag]:
                     match_host = False
             if match_host:
-                for tag in CUSTOMER_TAGS:
+                for tag in ALERT_CUSTOMER_TAGS:
                     tags[tag] = reporters[tag]
 
                 LOG.debug(
@@ -128,7 +130,7 @@ class GrayHandler(PluginBase):
             tags[tag] = reporters[tag]
 
         # Overwrite customer tags
-        for tag in CUSTOMER_TAGS:
+        for tag in ALERT_CUSTOMER_TAGS:
             tags[tag] = reporters[tag]
 
         # Remove target tags
@@ -185,7 +187,7 @@ class GrayHandler(PluginBase):
 
         if host_match:
             # Enforced customer tags
-            for tag in CUSTOMER_TAGS:
+            for tag in BLACKOUT_CUSTOMER_TAGS:
                 tags[tag] = reporters[tag]
 
             blackout.tags = self.dict_to_list(tags, plain_tags)
@@ -211,7 +213,7 @@ class GrayHandler(PluginBase):
         # If no match on filters. Create blackout with FQDN of host and customer tags
         plain_tags.append(reporters['host'])
 
-        for tag in CUSTOMER_TAGS:
+        for tag in BLACKOUT_CUSTOMER_TAGS:
             tags[tag] = reporters[tag]
 
         blackout.tags = self.dict_to_list(tags, plain_tags)
