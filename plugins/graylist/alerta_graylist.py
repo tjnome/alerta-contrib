@@ -17,9 +17,9 @@ TARGET_TAGS = app.config.get('target_tags', ['targethost'])
 REPORTER_HEADERS = app.config.get('reporter_headers', [
                                   'X-Pamola-Reporter-Host', 'X-Pamola-Reporter-External-ID', 'X-Pamola-Reporter-Customer-Prefix'])
 ALERT_CUSTOMER_TAGS = app.config.get(
-    'customer_tags', ['externalid', 'customerprefix'])
+    'alert_customer_tags', ['externalid', 'customerprefix'])
 BLACKOUT_CUSTOMER_TAGS = app.config.get(
-    'customer_tags', ['externalid'])
+    'blackout_customer_tags', ['externalid'])
 
 
 @dataclass
